@@ -34,6 +34,9 @@ def main():
                 
                 done = terminated or truncated
 
+                if done:
+                    print(f"Episode ended: terminated={terminated}, truncated={truncated}")
+
                 q_table = learn(state, action, next_state, reward, q_table)
 
                 state = next_state
@@ -48,6 +51,7 @@ def main():
 
             if total_reward > highest_reward:
                 highest_reward = total_reward
+                saveQ(q_table, "q_table.csv")
                 print("New highest reward: {total_reward}.")
 
             env.reset()
@@ -66,30 +70,38 @@ def learn(state, action, next_state, reward, q_table):
     alpha = 0.1
     gamma = 0.9
 
-    # TODO: Implement update Q values using the Bellman update equation
+    if(next_state == -1):
+        q_table[state,action] = q_table[state, action] + alpha*(reward - q_table[state, action])
+
+    else:
+        q_table[state,action] = q_table[state, action] + alpha*(reward + gamma*np.max(q_table[next_state, :])- q_table[state, action])
+
 
     return q_table
 
 
 def choose_action(state, q_table, epsilon, action_space):
-    action = 0
+    decision_vals = q_table[state,:]
+    xplore_or_xploit = random.random()
 
-    # TODO: Implement choose action.
+    if(xplore_or_xploit>epsilon):
+        action = np.argmax(decision_vals)
+
+    else:
+        action = action_space.sample()
     
     return action
 
 
 def saveQ(q_table, save_path):
 
-    # TODO: Implement saving the Q values
+    np.savetxt(save_path, q_table, delimiter=",")
 
     return
 
 def loadQ(load_path):
 
-    # TODO: Implement loading the Q values
-
-    return
+    return np.loadtxt(load_path, delimiter=",")
 
 if __name__ == "__main__":
     main()

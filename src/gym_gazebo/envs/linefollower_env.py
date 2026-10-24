@@ -140,7 +140,17 @@ class LineFollowerEnv(GazeboEnv):
         '''
         vel_cmd = RosTwist()
 
-        # TODO: Impelement process action.
+        if(action == 0):
+            vel_cmd.linear.x = 0.12
+            vel_cmd.angular.z = 0.4
+
+        elif(action == 1):
+            vel_cmd.linear.x = 0.3
+            vel_cmd.angular.z = 0.0
+
+        elif(action == 2):
+            vel_cmd.linear.x = 0.12
+            vel_cmd.angular.z = -0.4
         
         return vel_cmd
 
@@ -153,8 +163,22 @@ class LineFollowerEnv(GazeboEnv):
         '''
         reward = 0
 
-        # TODO: Implement process reward.
-        
+        if(terminated): reward -= 20
+
+        if(state == 0):
+            if(action == 0): reward += 5
+            elif(action == 1): reward -= 2
+            elif(action == 2): reward -= 4
+
+        elif(state == 1):
+            if(action == 1): reward += 5
+            else: reward -= 3
+
+        elif(state == 2):
+            if(action == 2): reward += 5
+            elif(action == 1): reward -= 2
+            elif(action == 0): reward -= 4
+
         return reward
 
 
@@ -171,10 +195,43 @@ class LineFollowerEnv(GazeboEnv):
         '''
         cv_image = CvBridge().imgmsg_to_cv2(obs, desired_encoding='bgr8')
 
-        state = 0
+        # Default as line is centered
+        state = 1
         terminated = False
 
-        # TODO: Implement process observation
+        height, width, channel = cv_image.shape
+        left_border = width/3
+        right_border = (width*2)/3
+
+        ## @brief Reduces area of interest to bottom 30% of screen.
+        startRead = int(height*0.50)
+        bottom = cv_image[startRead:,:]
+
+        ## @brief Converts area of interest to HSV and extracts saturation channel.
+        hsv = cv2.cvtColor(bottom, cv2.COLOR_BGR2HSV)
+        S = hsv[:,:,1]
+
+        ## @brief Creates a mask to differentiate high-saturation pixels
+        mask = S > 130
+
+        ## @brief Place xy coordinates of mask pixels and in an array.
+
+        y,x = np.where(mask)
+        print("Detected pixels:", len(x))
+
+        ## @brief Calculates error of robot centering based on central saturation pixel vs central image pixel, uploads correction turn speed to robot
+        if len(x) > 0:
+            centre_x = int(np.mean(x))
+
+            if(centre_x < left_border): state=0
+
+            elif(centre_x > right_border): state=2
+
+            else: state=1
+
+        else:
+            state = -1
+            terminated = True
 
         return state, terminated
 
